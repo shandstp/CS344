@@ -4,6 +4,52 @@ lineCount=0
 colCount=0
 width=0
 
+getDims(){
+
+	lineCount=$(cat $1 | wc -l)
+
+	while read line
+	do
+		colCount=$(echo $line | wc -w)
+	
+		if [[ $width == 0 ]]; then
+			width=$colCount
+		fi
+	
+		if [[ $width != $colCount ]]; then
+			exit 1
+		fi
+	done < $1	
+	echo $"$lineCount $colCount"
+}
+
+compDims(){
+	echo "Compares dimensions of two matricies"
+}
+
+tpose(){
+	getDims $1 > tmpDims
+	numCol=$(cut -d " " -f 1 tmpDims)
+	i=0
+	while read line
+	do
+		for element in $line
+		do
+			(( i++ ))
+			printf '%s' "$element" >> tPosed
+			if [[ $i != 0 ]] && [[ $i != $numCol ]]; then
+				printf '\t' "" >> tPosed
+			fi
+			if [[ $i == $numCol ]]; then
+				printf '\n' "" >> tPosed	
+				i=0
+			fi
+		done	
+	done < $1
+	printf '\n' >> tPosed
+	echo $"tPosed"
+}
+
 if [[ $# < 2 ]]; then
 	cat > tempInput
 	input="tempInput"
@@ -11,32 +57,21 @@ else
 	input="$2"
 fi
 
-lineCount=$(cat $input | wc -l)
-
-while read line
-do
-
-	colCount=$(echo $line | wc -w)
-	
-	if [[ $width == 0 ]]; then
-		width=$colCount
-	fi
-	
-	if [[ $width != $colCount ]]; then
-		exit 1
-	fi
-
-done < $input	
 
 if [[ $1 == 'dims' ]]; then
 	if [[ $# > 2 ]]; then
-		#echo "Too many arguments" 2>&
-		exit 1
+		echo "Too many arguments" >&2
+		exit 43
 	else 
-		echo "$lineCount $colCount"
+		result=$(getDims $input)
+		#result2=$(getDims tempInput)
+		echo "$result"
+		#echo "$result2"
 	fi
 elif [[ $1 == 'transpose' ]]; then
-	exit 0
+	tposedMat=$(tpose $input)
+	cat $tposedMat
+
 elif [[ $1 == 'mean' ]]; then
 	exit 0
 elif [[ $1 == 'add' ]]; then
@@ -44,3 +79,9 @@ elif [[ $1 == 'add' ]]; then
 elif [[ $1 == 'multiply' ]]; then 
 	exit 0
 fi
+
+#if [ "test" != "sett" ]; then
+#	echo "They're clearly different"
+#else
+#	echo "They're the same?"
+#fi
