@@ -1,19 +1,46 @@
 #!/bin/bash
 
-if [[ $1 == 'dims' ]]; then
-	echo $1
-elif [[ $1 == 'transpose' ]]; then
-	echo $1
-elif [[ $1 == 'mean' ]]; then
-	echo $1
-elif [[ $1 == 'add' ]]; then
-	echo $1
-elif [[ $1 == 'multiply' ]]; then 
-	echo $1
+lineCount=0
+colCount=0
+width=0
+
+if [[ $# < 2 ]]; then
+	cat > tempInput
+	input="tempInput"
+else
+	input="$2"
 fi
 
-if [[ $1 != '' ]]; then
-	echo "You entered $1"
-else
-	echo "You didn't enter anything"
-fi 
+lineCount=$(cat $input | wc -l)
+
+while read line
+do
+
+	colCount=$(echo $line | wc -w)
+	
+	if [[ $width == 0 ]]; then
+		width=$colCount
+	fi
+	
+	if [[ $width != $colCount ]]; then
+		exit 1
+	fi
+
+done < $input	
+
+if [[ $1 == 'dims' ]]; then
+	if [[ $# > 2 ]]; then
+		#echo "Too many arguments" 2>&
+		exit 1
+	else 
+		echo "$lineCount $colCount"
+	fi
+elif [[ $1 == 'transpose' ]]; then
+	exit 0
+elif [[ $1 == 'mean' ]]; then
+	exit 0
+elif [[ $1 == 'add' ]]; then
+	exit 0
+elif [[ $1 == 'multiply' ]]; then 
+	exit 0
+fi
