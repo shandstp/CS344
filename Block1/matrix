@@ -6,11 +6,11 @@ width=0
 
 getDims(){
 
-	lineCount=$(cat $1 | wc -l)
+	local lineCount=$(cat $1 | wc -l)
 
 	while read line
 	do
-		colCount=$(echo $line | wc -w)
+		local colCount=$(echo $line | wc -w)
 	
 		if [[ $width == 0 ]]; then
 			width=$colCount
@@ -28,31 +28,27 @@ compDims(){
 }
 
 tpose(){
-	getDims $1 > tmpDims
-	numCol=$(cut -d " " -f 1 tmpDims)
-	i=0
-	while read line
-	do
-		for element in $line
-		do
-			(( i++ ))
-			printf '%s' "$element" >> tPosed
-			if [[ $i != 0 ]] && [[ $i != $numCol ]]; then
-				printf '\t' "" >> tPosed
+	local dims=$(getDims $1)
+	local width=$(echo $dims | cut -d " " -f 2)
+	local newidth=$(echo $dims | cut -d " " -f 1)
+	for (( i=1 ; i <= $width; i++ )); do 
+		local newrow=$(cut -f $i $1 | tr '\n' '\t' | tr ' ' '\t')
+		j=1
+		for word in $newrow; do
+			if (( $j < $newidth )); then
+				printf '%s\t' "$word" >> tPosed$$
+			else
+				printf '%s\n' "$word" >> tPosed$$
 			fi
-			if [[ $i == $numCol ]]; then
-				printf '\n' "" >> tPosed	
-				i=0
-			fi
-		done	
-	done < $1
-	printf '\n' >> tPosed
-	echo $"tPosed"
+			(( j++ ))
+		done
+	done
+	echo $"tPosed$$"
 }
 
 if [[ $# < 2 ]]; then
-	cat > tempInput
-	input="tempInput"
+	cat > tempInput$$
+	input="tempInput$$"
 else
 	input="$2"
 fi
@@ -64,13 +60,12 @@ if [[ $1 == 'dims' ]]; then
 		exit 43
 	else 
 		result=$(getDims $input)
-		#result2=$(getDims tempInput)
 		echo "$result"
-		#echo "$result2"
 	fi
 elif [[ $1 == 'transpose' ]]; then
 	tposedMat=$(tpose $input)
 	cat $tposedMat
+	rm -f $tposedMat
 
 elif [[ $1 == 'mean' ]]; then
 	exit 0
@@ -80,6 +75,7 @@ elif [[ $1 == 'multiply' ]]; then
 	exit 0
 fi
 
+rm -f tempInput$$
 #if [ "test" != "sett" ]; then
 #	echo "They're clearly different"
 #else
