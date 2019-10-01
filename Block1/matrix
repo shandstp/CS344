@@ -33,7 +33,7 @@ tpose(){
 	local newidth=$(echo $dims | cut -d " " -f 1)
 	for (( i=1 ; i <= $width; i++ )); do 
 		local newrow=$(cut -f $i $1 | tr '\n' '\t' | tr ' ' '\t')
-		j=1
+		local j=1
 		for word in $newrow; do
 			if (( $j < $newidth )); then
 				printf '%s\t' "$word" >> tPosed$$
@@ -44,6 +44,30 @@ tpose(){
 		done
 	done
 	echo $"tPosed$$"
+}
+
+findMean(){
+
+	local dims=$(getDims $1)
+	local width=$(echo $dims | cut -d " " -f 2)
+	local height=$(echo $dims | cut -d " " -f 1)
+	
+	for (( i=1 ; i <= $width; i++ )); do
+		local curCol=$(cut -f $i $1 | tr '\n' '\t')
+		local colSum=0
+		for num in $curCol; do
+			echo "colSum is $colSum and num is $num" >> trouble
+			colSum=$(expr $colSum + $num)
+		done
+		echo "now colSum is $colSum and height is $height" >> trouble
+		colMean=$(expr $colSum / $height)
+		printf '%s\t' "$colMean" >> mean$$
+	done
+	
+	echo >> mean$$
+	result=$(cat mean$$)
+	rm -f mean$$
+	echo $"$result"
 }
 
 if [[ $# < 2 ]]; then
@@ -68,7 +92,8 @@ elif [[ $1 == 'transpose' ]]; then
 	rm -f $tposedMat
 
 elif [[ $1 == 'mean' ]]; then
-	exit 0
+	mean=$(findMean $input)
+	echo "$mean"
 elif [[ $1 == 'add' ]]; then
 	exit 0
 elif [[ $1 == 'multiply' ]]; then 
@@ -76,8 +101,3 @@ elif [[ $1 == 'multiply' ]]; then
 fi
 
 rm -f tempInput$$
-#if [ "test" != "sett" ]; then
-#	echo "They're clearly different"
-#else
-#	echo "They're the same?"
-#fi
