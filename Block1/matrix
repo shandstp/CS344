@@ -56,12 +56,15 @@ findMean(){
 		local curCol=$(cut -f $i $1 | tr '\n' '\t')
 		local colSum=0
 		for num in $curCol; do
-			echo "colSum is $colSum and num is $num" >> trouble
 			colSum=$(expr $colSum + $num)
 		done
-		echo "now colSum is $colSum and height is $height" >> trouble
-		colMean=$(expr $colSum / $height)
-		printf '%s\t' "$colMean" >> mean$$
+		pos=$(( $colSum > 0 ))
+		colMean=$((( $colSum + ( $height / 2 ) * ( $pos * 2 - 1 )) / $height ))
+		if (( $i < $width )); then
+			printf '%s\t' "$colMean" >> mean$$
+		else
+			printf '%s' "$colMean" >> mean$$
+		fi
 	done
 	
 	echo >> mean$$
