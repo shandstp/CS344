@@ -73,13 +73,51 @@ findMean(){
 	echo $"$result"
 }
 
-if [[ $# < 2 ]]; then
+matAdd(){
+	local m1=($(cat $1))
+	local m2=($(cat $2))
+	local size=$(wc -w $1 | cut -d " " -f 1)
+	local width=$3	
+	for (( i = 0; i < $size; i++ )); do
+		m1[$i]=$((( m1[$i] + m2[$i] )))
+	done
+	local result=$(echo ${m1[@]} | tr " " '\t')
+	local j=1
+	for word in $result; do
+		if (( $j < $width )); then
+			printf '%s\t' "$word" >> trix$$
+		else
+			printf '%s\n' "$word" >> trix$$
+			j=0
+		fi
+		(( j++ ))
+	done
+	local returnMat=$(cat trix$$)
+	rm trix$$
+	echo $"$returnMat"
+}
+
+if [[ $# == 1 ]]; then
 	cat > tempInput$$
 	input="tempInput$$"
-else
+elif [[ $# == 2 ]]; then
 	input="$2"
+elif [[ $# == 3 ]]; then
+	input="$2"
+	input2="$3"
+	mdim=$(getDims $input)
+	mdim2=$(getDims $input2)
+	if [[ $mdim != $mdim2 ]]; then
+		echo "Miss matched matricies"
+		exit 1
+	fi
+	width=$(echo $mdim | cut -d " " -f 2)
+	height=$(echo $mdim | cut -d " " -f 1)
+elif [[ $# > 3 ]]; then
+	echo "Too many arguments"
+elif [[ $# < 1 ]]; then
+	echo "Too few arguments"
 fi
-
 
 if [[ $1 == 'dims' ]]; then
 	if [[ $# > 2 ]]; then
@@ -98,7 +136,9 @@ elif [[ $1 == 'mean' ]]; then
 	mean=$(findMean $input)
 	echo "$mean"
 elif [[ $1 == 'add' ]]; then
-	exit 0
+	#echo "The height is $height and width is $width"
+	mpm=$(matAdd $input $input2 $width)
+	echo "$mpm"
 elif [[ $1 == 'multiply' ]]; then 
 	exit 0
 fi
