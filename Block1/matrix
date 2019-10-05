@@ -1,5 +1,15 @@
 #!/bin/bash
 
+trap "cleanup; exit 40" SIGTERM SIGHUP SIGINT
+
+cleanup(){
+	rm -f tempInput*
+	rm -f tPosed*
+	rm -f mean*
+	rm -f trix*
+	rm -f product*
+}
+
 width=0 #Some portion of the script depend on an initial of zero
 
 #Takes a matrix as an argument and returns a tuple containing the height and widthe of the matrix
@@ -26,6 +36,7 @@ compDims(){
 
 #Arg: matrix
 #Ret: transposed matrix
+#Takes a matrix as input and 
 tpose(){
 	local dims=$(getDims $1)
 	local width=$(echo $dims | cut -d " " -f 2)
@@ -75,16 +86,19 @@ findMean(){
 	echo $"$result"
 }
 
+#Takes two matricies and their width as input and returns a matrix that is their sum
 matAdd(){
 	local m1=($(cat $1))
 	local m2=($(cat $2))
 	local size=$(wc -w $1 | cut -d " " -f 1)
 	local width=$3	
+	#Loop through both matricies, sum the values stored at the current index and store the result at the corresponding index of the new matrix
 	for (( i = 0; i < $size; i++ )); do
 		m1[$i]=$((( m1[$i] + m2[$i] )))
 	done
-	local result=$(echo ${m1[@]} | tr " " '\t')
+	local result=$(echo ${m1[@]} | tr " " '\t') #Echo the contents of the new matrix into a variable
 	local j=1
+	#Loop through the each element of the new array, appending it to a file named trix$$ with proper formating
 	for word in $result; do
 		if (( $j < $width )); then
 			printf '%s\t' "$word" >> trix$$
@@ -98,16 +112,20 @@ matAdd(){
 	rm trix$$
 	echo $"$returnMat"
 }
-
+#Takes matrix 1, matrix 2, width 1, and width 2 as input and returns a matrix containing their product
 multiply(){
+	#Loops through each line of the first matrix
 	while read line; do
-	arr=( $(echo $line) )
+	arr=( $(echo $line) ) #Converts the current line of the first matrix into an array
+		#Loops through each column of the second matrix and calculates its dot product with the current row of the first matrix
 		for (( j = 1; j <= $4; j++ )); do
 			sum=0
-			arr2=( $(cut -f $j $2 | tr '\n' '\t') )
+			arr2=( $(cut -f $j $2 | tr '\n' '\t') ) #Converts the current column of matrix 2 into an array
+			#Loops through each element of matrix 1's current row and the corresponding element of matrix 2's current column, multiplying and summing as needed in order to calculate the dot product 
 			for (( k = 0; k < $3; k++ )); do
 				sum=$(( $sum + ${arr[$k]} * ${arr2[$k]} ))
 			done
+			#Appends each dot product the appropriate index in product$$
 			if (( $j < $4 )); then
 				printf '%s\t' "$sum" >> product$$
 			else
@@ -120,16 +138,19 @@ multiply(){
 	echo $"$final"
 }
 
+#Checks if the script was started without any arguments and returns an error if none were found
 if [[ $# == 0 ]]; then
 	echo "Argument needed" >&2
 	exit 22
 fi
+#If at least one argument was passed in at start time, verifies that the first argument is a valid operation mode. Throws an error if no valid argument is found.
 if [[ $# > 0 ]]; then
 	if [[ $1 != 'dims' && $1 != 'transpose' && $1 != 'mean' && $1 != 'add' && $1 != 'multiply' ]]; then
 		echo "Invalid argument!" >&2
 		exit 12
 	fi
 fi
+#If only one argument was received, and it was not 'add' or 'multiply', then gets input from stdin.
 if [[ $# == 1 ]]; then
 	if [[ $1 == 'add' ]] || [[ $1 == 'multiply' ]]; then
 		echo "At least one file required as input" >&2
@@ -137,8 +158,10 @@ if [[ $# == 1 ]]; then
 	fi 
 	cat > tempInput$$
 	input="tempInput$$"
+#If two argumetns are provided, assigns matrix to input
 elif [[ $# == 2 ]]; then
 	input="$2"
+#If three arguments are given, sets matrix 1 to input and matrix 2 to input2 and gets the dimensions of both
 elif [[ $# == 3 ]]; then
 	input="$2"
 	input2="$3"
@@ -148,13 +171,16 @@ elif [[ $# == 3 ]]; then
 	height=$(echo $mdim | cut -d " " -f 1)
 	width2=$(echo $mdim2 | cut -d " " -f 2)
 	height2=$(echo $mdim2 | cut -d " " -f 1)
+#Throws an error if too many arguments are passed to the script from command line
 elif [[ $# > 3 ]]; then
 	echo "Too many arguments" >&2
+#Throws an error if the script was started without any arguments
 elif [[ $# < 1 ]]; then
 	echo "Too few arguments" >&2
 fi
-
+#Attempts to get the dimensions of the provided matrix
 if [[ $1 == 'dims' ]]; then
+	#Verifies that the file both exists and is readable. Throws an error if either is not true.
 	if [[ -e $input && -r $input ]]; then
 		if [[ $# > 2 ]]; then
 			echo "Too many arguments" >&2
@@ -167,7 +193,9 @@ if [[ $1 == 'dims' ]]; then
 			echo "Invalid file!" >&2
 			exit 51
 	fi
+#Attempts to transpose the provided matrix
 elif [[ $1 == 'transpose' ]]; then
+	#Verifies that the file both exists and is readable. Throws an error if either is not true.
 	if [[ -e $input && -r $input ]]; then
 			tposedMat=$(tpose $input)
 			cat $tposedMat
@@ -176,17 +204,22 @@ elif [[ $1 == 'transpose' ]]; then
 		echo "Error: file unreadable" >&2
 		exit 46
 	fi
+#Attempts to calculate the mean of the given matrix
 elif [[ $1 == 'mean' ]]; then
 	mean=$(findMean $input)
 	echo "$mean"
+#Attempts to calculate the sum of two matricies
 elif [[ $1 == 'add' ]]; then
+	#Verifies that both matricies share the same dimensions. Throws an error if they do not.
 	if [[ $mdim != $mdim2 ]]; then
 		echo "Miss matched matricies" >&2
 		exit 1
 	fi
 	mpm=$(matAdd $input $input2 $width)
 	echo "$mpm"
+#Attempts to calculate the product of two matricies
 elif [[ $1 == 'multiply' ]]; then 
+	#Verifies that both matricies have dimensions appropriate for multiplaction. Throws an error if either does not.
 	if (( $width == $height2 )); then
 		result=$(multiply $input $input2 $width $width2)
 		echo "$result"
