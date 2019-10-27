@@ -1,0 +1,31 @@
+#include <stdio.h>
+#include <string.h>
+#include <dirent.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
+
+char* newDir(){
+    int procid = getpid();
+    char dirPrfx [32] = "shandst.rooms.";
+    char sproc[10];
+    sprintf(sproc, "%d", procid);
+    strcat(dirPrfx, sproc);
+    mkdir(dirPrfx, 0776);
+    char* newDir = dirPrfx;
+
+    return newDir;
+}
+int main()
+{
+    char* curDir = newDir();
+    printf("Created %s\n", curDir);
+    char path[32];
+    strcpy(path, curDir);
+    strcat(path, "/filename");
+    int fd = open(path, O_RDWR | O_APPEND | O_CREAT, 0644);
+    printf("Created file with descriptor %d, in %s\n", fd, path);
+
+    return 0;
+}

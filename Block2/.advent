@@ -1,0 +1,40 @@
+#include <stdio.h>
+#include <string.h>
+#include <dirent.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
+
+int main()
+{
+    int mostRecTime = -1;
+    char dirPref[32] = "shandst.rooms.";
+    char newDir[256];
+    memset(newDir, '\0', sizeof(newDir));
+
+    DIR* curDir;
+    struct dirent *dirFile;
+    struct stat dirAttr;
+
+    curDir = opendir(".");
+
+    if (curDir > 0){
+        while ((dirFile = readdir(curDir)) != NULL ){
+            if (strstr(dirFile->d_name, dirPref) != NULL){
+                printf("Found the prefix: %s\n", dirFile->d_name);
+                stat(dirFile->d_name, &dirAttr);
+
+                if ((int)dirAttr.st_mtime > mostRecTime){
+                    mostRecTime = (int)dirAttr.st_mtime;
+                    memset(newDir, '\0', sizeof(newDir));
+                    strcpy(newDir, dirFile->d_name);
+                    printf("Newer subdir: %s, new time: %d\n",
+                            dirFile->d_name, mostRecTime);
+                }
+            }
+        }
+    }
+    closedir(curDir);
+    printf("Newest entry found is: %s\n", newDir);
+    return 0;
+}
