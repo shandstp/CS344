@@ -225,11 +225,7 @@ int main(){
     	chooseRooms(dungeon);
 	connectDungeon(dungeon);
 
-//	printDungeon(dungeon);
-//   	printRooms(dungeon);
-
 	char* curDir = newDir();
-//	printf("Created %s\n", curDir);
 	int i;
 	for(i = 0; i < dungeon->numRooms; i++){
 		char path[32] = {'\0'};
@@ -241,24 +237,18 @@ int main(){
 			exit(1);
 		}
 	
-//		printf("Created file with descriptor %d, in %s\n", fd, path);
-//		ssize_t writeCount;
 		char* output = calloc(32, sizeof(char));
 		memset(output, '\0', 32);
 		sprintf(output, "ROOM NAME: %s\n", dungeon->dungeonMap[i]->rmName);
-//		writeCount = write(fd, output, strlen(output) * sizeof(char));
 		write(fd, output, strlen(output) * sizeof(char));
 		int j;
 		for(j = 0; j < dungeon->dungeonMap[i]->numConnect; j++){
 			memset(output, '\0', 32);
 			sprintf(output, "CONNECTION %d: %s\n", j + 1, dungeon->dungeonMap[i]->outbound[j]->rmName);
-//			writeCount = write(fd, output, strlen(output) * sizeof(char));
 			write(fd, output, strlen(output) * sizeof(char));
-//			printf("Wrote %zu bytes to %s\n", writeCount, path);
 		}
 		memset(output, '\0', 32);
 		sprintf(output, "ROOM TYPE: %s\n", dungeon->dungeonMap[i]->type);
-//		writeCount = write(fd, output, strlen(output) * sizeof(char));
 		write(fd, output, strlen(output) * sizeof(char));
 	}
  
