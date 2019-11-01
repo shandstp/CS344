@@ -5,6 +5,12 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <stdlib.h>
+#include <fcntl.h>
+
+struct gameState{
+	int steps;
+	char** visited;
+};
 
 struct roomFile{
 	int numEntries;
@@ -52,15 +58,92 @@ void initFile(struct roomFile* rf){
 	}
 }
 
+void initGame(struct gameState* gs){
+	gs->steps = 0;
+	gs->visited = malloc(32 * sizeof(char*));
+	int i;
+	for(i = 0; i < 32; i++){
+		gs->visited[i] = malloc(32 * sizeof(char));
+	}
+}
+
+void getData(struct roomFile* rf, int fd){
+	char buff[256];
+	char word[32];
+	char* mode = malloc(sizeof(char));
+	*mode = 'r';
+	FILE* stream = fdopen(fd, mode);
+	while(fgets(buff, 256, stream) != NULL){
+		memset(word, '\0', 32);
+		sscanf(buff, "%*s %*s %s", word);
+		strcpy(rf->entries[rf->numEntries], word);
+		rf->numEntries++;
+		memset(buff, '\0', 256);
+	}
+	free(mode);
+}
+
+void reset(struct roomFile* rf){
+	int i;
+	for(i = 0; i < rf->numEntries; i++){
+		memset(rf->entries[i], '\0', 256);
+	} 
+	rf->numEntries = 0;
+}
+
+struct roomFile* findRoom(struct roomFile* rf, DIR* dir, char* path, char* str, int opt){
+	rewinddir(dir);
+	struct dirent* curFile;
+	char* filePath = malloc(256 * sizeof(char));
+	while((curFile = readdir(dir)) != NULL){
+		if(strcmp(curFile->d_name, ".") != 0 && strcmp(curFile->d_name, "..") != 0){	
+			memset(filePath, '\0', 256 * sizeof(char));	
+			sprintf(filePath, "%s/%s", path, curFile->d_name);
+			int fd = open(filePath, O_RDONLY);
+//			printf("The file path is %s\n", filePath);
+			if(fd == -1){
+				printf("Failed to open file in game directory\n");
+				perror("While opening file");
+				exit(1);
+			}
+			getData(rf, fd);
+//			int i;
+//			for(i = 0; i < roomFile->numEntries; i++){
+//				printf("%s ", roomFile->entries[i]);
+//			}
+//			printf("\n");
+			if(opt == 0){
+				if(strcmp(str, rf->entries[0]) == 0){
+					return rf;
+				}
+			}
+			else if(opt == 1){
+				if(strcmp(str, rf->entries[rf->numEntries - 1]) == 0){
+					return rf;
+				}
+			}
+			reset(rf);
+		}
+	} 
+	return NULL;
+}
+
 int main()
 {
 	char* dir = selectDir();
 	printf("The most recent dir is: %s\n", dir);
-	struct roomFile* curFile = NULL;
-	initFile(curFile);
+	struct roomFile* roomFile = malloc(sizeof(struct roomFile));
+	initFile(roomFile);
 	char dirPath[256] = {'\0'};
 	sprintf(dirPath, "./%s", dir);
 	DIR* gameDir = opendir(dirPath); 	
+	roomFile = findRoom(roomFile, gameDir, dirPath, "Hall", 0);
+	if(roomFile == NULL){
+		printf("Could not locate room\n");
+		exit(1);
+	}
+	printf("Located %s\n", roomFile->entries[0]);
+	closedir(gameDir);
 	return 0;
 }
 /*
