@@ -13,22 +13,25 @@
 
 
 
-enum truth {false, true};
+enum truth {false, true}; //Allow use of true and false to improve readability 
 
+//Facilitates the storing of room data as it is being randomly generated
 struct Room {
-	int id;
-	char* type;
-	int numConnect;
-	char* rmName;
-	struct Room* outbound[6];
+	int id; //Used to easily compare rooms without neading to compare strings
+	char* type; //Used to identify a room as START_ROOM, END_ROOM, or MID_ROOM
+	int numConnect; //Tracks number of rooms that the each is connected to
+	char* rmName; //Stores name of each room
+	struct Room* outbound[6]; //An array of Room struct pointers for storing the address of each room connected to
 };
 
+//Organizes Rooms into a larger map
 struct Dungeon {
-	int capacity;
-	int numRooms;
-	struct Room* dungeonMap[7];
+	int capacity; //Tracks how many rooms can contained within each dungeon
+	int numRooms; //Tracks how many rooms have been added to each dungeon
+	struct Room* dungeonMap[7]; //An array of Room struct pointers for organizing Rooms into a single map
 };
 
+//Takes a Room struct and initializes it to the default values of 0 connections and no name or type values
 void initRoom(struct Room* room){
 	room->numConnect = 0;
 	room->type = calloc(16, sizeof(char));
@@ -39,6 +42,7 @@ void initRoom(struct Room* room){
 	}
 }
 
+//Takes a Dungeon struct and initializes it to the default values of 7 capacity, 0 room count, and no name values
 void initDungeon(struct Dungeon* d){
 	d->capacity = 7;
 	d->numRooms = 0;
@@ -49,6 +53,7 @@ void initDungeon(struct Dungeon* d){
 	}
 }
 
+//Iterates through a dungeon and prints all of its values. Only used for testing
 void printDungeon(struct Dungeon* d){
 	printf("Details of the dungeon are as follows:\n");
 	printf("Room capacity: %d\n", d->capacity);
@@ -62,6 +67,7 @@ void printDungeon(struct Dungeon* d){
 	}
 }
 
+//Iterates through a dungeon checking the id of each room contained therin. Returns a 1 if a room is found with an id that matches the given id, otherwise 0.
 int containsRoom(struct Dungeon* d, int id){
     int i;
     for(i = 0; i < d->capacity; i++){
@@ -72,6 +78,7 @@ int containsRoom(struct Dungeon* d, int id){
     return 0;
 }
 
+//Takes a room id and returns the corresponding name
 void getName(struct Dungeon* d, int id){
     switch (id)
     {
@@ -118,6 +125,7 @@ void getName(struct Dungeon* d, int id){
     }
 }
 
+//Used as the map is being generated to determine what a rooms type will be based on when it is added to the dungeon
 void getType(struct Dungeon* d){
 	switch(d->numRooms)
 	{
@@ -133,6 +141,7 @@ void getType(struct Dungeon* d){
 	}
 }
 
+//
 void chooseRooms(struct Dungeon* d){
     while(d->numRooms < d->capacity){
         int id = (rand() % 10) + 1;
@@ -144,6 +153,7 @@ void chooseRooms(struct Dungeon* d){
     }
 }
 
+//Determines whether or not all files have been generated
 int fullyConnected(struct Dungeon* d){
 	int i;
 	for(i = 0; i < d->capacity; i++){
@@ -154,6 +164,7 @@ int fullyConnected(struct Dungeon* d){
 	return 1;
 }
 
+//Determines if a connection can be added to the given room
 int hasRoom(struct Room* r){
 	if(r->numConnect < 6){
 		return 1;
@@ -161,6 +172,7 @@ int hasRoom(struct Room* r){
 	return 0;
 }
 
+//Determines if the room corresponding to x's id has already been added to y's room connections
 int alreadyAdded(struct Dungeon* d, int x, int y){
 	int i;
 	for(i = 0; i < d->dungeonMap[x]->numConnect; i++){
@@ -171,6 +183,7 @@ int alreadyAdded(struct Dungeon* d, int x, int y){
 	return 0;
 }
 
+//Takes two rooms and adds each to the others connection list
 void connectRooms(struct Room* r1, struct Room* r2){
 	r1->outbound[r1->numConnect] = r2;
 	r1->numConnect++;
@@ -178,6 +191,7 @@ void connectRooms(struct Room* r1, struct Room* r2){
 	r2->numConnect++;	
 }
 
+//Determines which rooms can be connected togeter until all of the rooms have been sufficiently connected
 void connectDungeon(struct Dungeon* d){
 	while(fullyConnected(d) != true){
 		int x = rand() % d->capacity;	
@@ -193,6 +207,7 @@ void connectDungeon(struct Dungeon* d){
 	}
 }
 
+//Prints details for all of the rooms in the given dungeon. Only used for testing
 void printRooms(struct Dungeon* d){
    int i;
    for(i = 0; i < 7; i++){
@@ -206,6 +221,7 @@ void printRooms(struct Dungeon* d){
     }
 }
 
+//Creats a new directory and returns its name
 char* newDir(){
     int procid = getpid();
     char dirPrfx [32] = "shandst.rooms.";
