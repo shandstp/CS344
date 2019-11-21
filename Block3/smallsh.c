@@ -21,6 +21,12 @@ void initCmd(struct cmd* cur){
 	cur->status = 0;
 	cur->infile = malloc(sizeof(char) * 32);
 	cur->outfile = malloc(sizeof(char) * 32);
+	strcpy(cur->infile, "");
+	strcpy(cur->outfile, "");
+//	int defaultIN = open("/dev/stdin", O_WRONLY);
+//	int defaultOUT = open("/dev/stdout", O_RDONLY);
+//	dup2(defaultIN, 0);
+//	dup2(defaultOUT, 1);
 	cur->numArgs = 0;
 	for(int i = 0; i < 512; i++){
 		cur->args[i] = malloc(sizeof(char) * 32);
@@ -121,18 +127,36 @@ pid_t kodzukuri(struct cmd* cur){
 	int childExitStatus = -5;
 
 	spawnPid = fork();
-	int infd = -5;
-	if((infd = open(cur->infile, O_RDONLY)) != -1){
-		dup2(infd, 0);
-	}	
-	int outfd = -5;
-	if((outfd = open(cur->outfile, O_WRONLY | O_CREAT | O_TRUNC, 0644)) != -1){
-		dup2(outfd, 1);
-	}
 	switch(spawnPid){
 		case -1:
 			perror("Something's forked up\n"); exit(1); break;
 		case 0: {
+	int infd = -5;
+	if((strcmp(cur->infile, "") != 0)){
+		if((infd = open(cur->infile, O_RDONLY)) != -1){
+			//close(0);
+			dup2(infd, 0);
+		}	
+		else{
+			perror("Invalid input file!");
+			exit(1);
+		}
+	}
+	int outfd = -5;
+	if((strcmp(cur->outfile, "") != 0)){
+		if((outfd = open(cur->outfile, O_WRONLY | O_CREAT | O_TRUNC, 0644)) != -1){
+			//close(1);
+			dup2(outfd, 1);
+		}
+	}
+	if(cur->bgflag == 1){
+		int voidRead = open("/dev/null", O_RDONLY);
+		int voidWrite = open("/dev/null", O_WRONLY);
+		//close(0);
+		//close(1);
+		dup2(voidRead, 0);
+		dup2(voidWrite, 1);
+	}	
 			char** argv = cur->args;
 			if(execvp(*argv, argv) < 0){
 				perror("Exec had a problem\n");
@@ -167,12 +191,17 @@ int main(){
 	//Loop until user types exit
 	while(1){
 
+//		int defaultIn = open("/dev/stdin", O_RDONLY);
+//		int defaultOut = open("/dev/stdout", O_WRONLY);
+		dup2(2, 0);
+		dup2(2, 1);
 		int childExitStatus = -5;
 		pid_t actualPid = waitpid(-1, &childExitStatus, WNOHANG);
 		if(WIFEXITED(childExitStatus)){
-			char childExit[32];
+			char childExit[16];
+			memset(childExit, '\0', 16);
 			sprintf(childExit, "%d\n", actualPid);
-			write(1, childExit, 32);
+			write(1, childExit, 16);
 			fflush(stdout);
 		}
 
@@ -181,18 +210,29 @@ int main(){
 		fflush(stdout);
 		char* input = malloc(sizeof(char) * 2048); //Allocate space for input
 		memset(input, '\0', 2048);
-		read(0, input, sizeof(char) * 2048); //Get input from user
-
+//		size_t bsize = 0;
+//		char* buff = NULL;
+//		getline(&buff, &bsize, stdin);
+		char ch[2] = {'\0'};
+		while(ch[0] != '\n'){
+			read(0, ch, sizeof(char)); //Get input from user
+			strcat(input, ch);
+		}
 		struct cmd* cur = malloc(sizeof(struct cmd));
 		initCmd(cur);	
 		buildCmd(cur, input);	
 //		printCmd(cur);
 		if(cur->args[0][0] ==  '#'){
 			char* scream = "You see nothing!";
-			int thevoid = open("/dev/null", O_RDONLY);
+			int thevoid = open("/dev/null", O_WRONLY);
 			write(thevoid, scream, 16);
 			fflush(stdout);
 		}
+		else if(strcmp(cur->args[0], "") == 0){
+			int thevoid = open("/dev/null", O_WRONLY);
+			write(thevoid, "Do nothing", 10);
+			fflush(stdout);
+		} 
 		else if(strcmp(cur->args[0], "exit") == 0){
 			freeCmd(cur);
 			free(input);
