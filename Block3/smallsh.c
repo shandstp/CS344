@@ -1,3 +1,4 @@
+#include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -6,6 +7,8 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <fcntl.h>
+
+int canbg = 1;
 
 struct cmd{
 	int bgflag;
@@ -23,10 +26,6 @@ void initCmd(struct cmd* cur){
 	cur->outfile = malloc(sizeof(char) * 32);
 	strcpy(cur->infile, "");
 	strcpy(cur->outfile, "");
-//	int defaultIN = open("/dev/stdin", O_WRONLY);
-//	int defaultOUT = open("/dev/stdout", O_RDONLY);
-//	dup2(defaultIN, 0);
-//	dup2(defaultOUT, 1);
 	cur->numArgs = 0;
 	for(int i = 0; i < 512; i++){
 		cur->args[i] = malloc(sizeof(char) * 32);
@@ -41,12 +40,15 @@ void getWord(char* word, int ws, int we, char* input){
 	}
 }
 
-void expand(char* word){
+void expand(char* word, char* substr){
 	int pid = getpid();
 	char spid[32];
 	sprintf(spid, "%d", pid);
-	memset(word, '\0', 32);
-	strcpy(word, spid);
+	char* tail = substr + 2;
+	strcat(spid, tail);
+	int offset = substr - word;
+	word[offset] = '\0';
+	strcat(word, spid);
 }
 
 void buildCmd(struct cmd* cur, char* input){
@@ -55,6 +57,7 @@ void buildCmd(struct cmd* cur, char* input){
 	int inflag = 0;
 	int outflag = 0;
 	char word[32];
+	char* substr = NULL;
 	while(input[i] != '\0'){
 		if(input[i] == ' ' || input[i + 1] == '\0'){
 			memset(word, '\0', 32);
@@ -73,13 +76,15 @@ void buildCmd(struct cmd* cur, char* input){
 				strcpy(cur->outfile, word);
 				outflag = 0;
 			}
-			else if(strcmp(word, "$$") == 0){
-				expand(word);
+			else if((substr = strstr(word, "$$")) != NULL){
+				expand(word, substr);
 				strcpy(cur->args[cur->numArgs], word);
 				cur->numArgs++;
 			}
 			else if(input[i + 1] == '\0' && strcmp(word, "&") == 0){
-				cur->bgflag = 1;
+				if(canbg == 1){
+					cur->bgflag = 1;
+				}
 			}
 			else{
 				strcpy(cur->args[cur->numArgs], word);
@@ -131,32 +136,35 @@ pid_t kodzukuri(struct cmd* cur){
 		case -1:
 			perror("Something's forked up\n"); exit(1); break;
 		case 0: {
-	int infd = -5;
-	if((strcmp(cur->infile, "") != 0)){
-		if((infd = open(cur->infile, O_RDONLY)) != -1){
-			//close(0);
-			dup2(infd, 0);
-		}	
-		else{
-			perror("Invalid input file!");
-			exit(1);
-		}
-	}
-	int outfd = -5;
-	if((strcmp(cur->outfile, "") != 0)){
-		if((outfd = open(cur->outfile, O_WRONLY | O_CREAT | O_TRUNC, 0644)) != -1){
-			//close(1);
-			dup2(outfd, 1);
-		}
-	}
-	if(cur->bgflag == 1){
-		int voidRead = open("/dev/null", O_RDONLY);
-		int voidWrite = open("/dev/null", O_WRONLY);
-		//close(0);
-		//close(1);
-		dup2(voidRead, 0);
-		dup2(voidWrite, 1);
-	}	
+			if(cur->bgflag == 0){
+				signal(SIGINT, SIG_DFL);
+			}
+			else{
+				signal(SIGINT, SIG_IGN);
+			}
+			signal(SIGTSTP, SIG_IGN);
+			int infd = -5;
+			if((strcmp(cur->infile, "") != 0)){
+				if((infd = open(cur->infile, O_RDONLY)) != -1){
+					dup2(infd, 0);
+				}	
+				else{
+					perror("Invalid input file!");
+					exit(1);
+				}
+			}
+			int outfd = -5;
+			if((strcmp(cur->outfile, "") != 0)){
+				if((outfd = open(cur->outfile, O_WRONLY | O_CREAT | O_TRUNC, 0644)) != -1){
+					dup2(outfd, 1);
+				}
+			}
+			if(cur->bgflag == 1){
+				int voidRead = open("/dev/null", O_RDONLY);
+				int voidWrite = open("/dev/null", O_WRONLY);
+				dup2(voidRead, 0);
+				dup2(voidWrite, 1);
+			}	
 			char** argv = cur->args;
 			if(execvp(*argv, argv) < 0){
 				perror("Exec had a problem\n");
@@ -165,14 +173,13 @@ pid_t kodzukuri(struct cmd* cur){
 			break;	
 		}
 		default: {
-			pid_t actualPid = -5;
 			if(cur->bgflag == 1){
-				actualPid = waitpid(spawnPid, &childExitStatus, WNOHANG);
+				waitpid(spawnPid, &childExitStatus, WNOHANG);
 			}
 			else{
-				actualPid = waitpid(spawnPid, &childExitStatus, 0);
+				return spawnPid;
 			}
-			return actualPid;
+			return -5;
 		}
 	}
 	return -1; 
@@ -187,32 +194,64 @@ void freeCmd(struct cmd* cur){
 	free(cur);
 }
 
+void catchSIGTSTP(int signo){
+	char message[120];
+	memset(message, '\0', 120);
+	if(canbg == 1){
+		strcpy(message, " SIGTSTP received, background processes will no longer be allowed. Press Ctrl-z again to re-enable background processes\n");
+		canbg = 0;	
+	}
+	else{
+		strcpy(message, " SIGTSTP received, background processes have been re-enabled\n");
+		canbg = 1;
+	}
+	write(1, message, 120);
+	fflush(stdout);
+}
+
 int main(){
+	struct sigaction ignore_action = {{0}};
+	ignore_action.sa_handler = SIG_IGN;
+	sigaction(SIGINT, &ignore_action, NULL);
+
+	struct sigaction SIGTSTP_action = {{0}};
+	SIGTSTP_action.sa_handler = catchSIGTSTP;
+	sigfillset(&SIGTSTP_action.sa_mask);
+	SIGTSTP_action.sa_flags = 0;
+
+	sigaction(SIGTSTP, &SIGTSTP_action, NULL);
+
+	//signal(SIGINT, SIG_IGN);
+
 	//Loop until user types exit
 	while(1){
 
-//		int defaultIn = open("/dev/stdin", O_RDONLY);
-//		int defaultOut = open("/dev/stdout", O_WRONLY);
-		dup2(2, 0);
-		dup2(2, 1);
 		int childExitStatus = -5;
-		pid_t actualPid = waitpid(-1, &childExitStatus, WNOHANG);
+		int fgExitStatus = 0;
+		//pid_t fgPid = -5;
+		pid_t fgSPid = -5;
+		pid_t bgPid = waitpid(-1, &childExitStatus, WNOHANG);
 		if(WIFEXITED(childExitStatus)){
-			char childExit[16];
-			memset(childExit, '\0', 16);
-			sprintf(childExit, "%d\n", actualPid);
-			write(1, childExit, 16);
+			char childExit[64];
+			memset(childExit, '\0', 64);
+			sprintf(childExit, "background pid %d is done: exit value is %d\n", bgPid, childExitStatus);
+			write(1, childExit, 64);
 			fflush(stdout);
 		}
-
+		/*
+		if(WIFSIGNALED(fgExitStatus)){
+			char fgSignalExit[32];
+			memset(fgSignalExit, '\0', 32);
+			sprintf(fgSignalExit, "terminated by signal %d", fgExitStatus);
+			write(1, fgSignalExit, 32);
+			fflush(stdout);
+		}
+		*/
 		char* prompt = ": "; //User prompt
 		write(1, prompt, 3); //Print prompt
 		fflush(stdout);
 		char* input = malloc(sizeof(char) * 2048); //Allocate space for input
 		memset(input, '\0', 2048);
-//		size_t bsize = 0;
-//		char* buff = NULL;
-//		getline(&buff, &bsize, stdin);
 		char ch[2] = {'\0'};
 		while(ch[0] != '\n'){
 			read(0, ch, sizeof(char)); //Get input from user
@@ -245,8 +284,10 @@ int main(){
 			getStatus(cur);	
 		}
 		else{
-			kodzukuri(cur);
+			fgSPid = kodzukuri(cur);
+			waitpid(fgSPid, &fgExitStatus, 0);
 		}
+		
 		freeCmd(cur);
 		free(input);
 	}
