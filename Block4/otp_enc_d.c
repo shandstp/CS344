@@ -75,7 +75,7 @@ void kodzukuri(int fd){
 			       while(msg[i] != '\0'){
 				       int msgNum = ctoi(msg[i]);
 				       int keyNum = ctoi(key[i]);
-				       int modNum = ((msgNum + keyNum) % 26);
+				       int modNum = ((msgNum + keyNum) % 27);
 				       buffer[0][i] = itoc(modNum); 
 				       i++;
 			       }
