@@ -1,0 +1,7 @@
+#!/bin/bash
+
+gcc -std=gnu99 keygen.c -o keygen
+gcc -std=gnu99 otp_enc.c -o otp_enc
+gcc -std=gnu99 otp_enc_d.c -o  otp_enc_d
+gcc -std=gnu99 otp_dec.c -o otp_dec 
+gcc -std=gnu99 otp_dec_d.c -o otp_dec_d 
